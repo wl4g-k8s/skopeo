@@ -23,5 +23,6 @@ require (
 	github.com/urfave/cli v1.20.0
 	github.com/xeipuuv/gojsonschema v1.1.0 // indirect
 	go4.org v0.0.0-20190218023631-ce4c26f7be8e // indirect
+	golang.org/x/text v0.3.3 // indirect
 	k8s.io/client-go v0.0.0-20181219152756-3dd551c0f083 // indirect
 )
