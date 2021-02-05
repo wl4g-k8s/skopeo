@@ -10,6 +10,7 @@ require (
 	github.com/docker/docker v17.12.0-ce-rc1.0.20201020191947-73dc6a680cdd+incompatible
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/go-check/check v0.0.0-20180628173108-788fd7840127
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/moby/term v0.0.0-20201110203204-bea5bbe245bf // indirect
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6

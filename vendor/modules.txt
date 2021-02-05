@@ -191,7 +191,7 @@ github.com/docker/go-units
 github.com/ghodss/yaml
 # github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 github.com/go-check/check
-# github.com/gogo/protobuf v1.3.1
+# github.com/gogo/protobuf v1.3.2
 github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/protoc-gen-gogo/descriptor
@@ -347,7 +347,7 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/socks
 golang.org/x/net/proxy
-# golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
+# golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 golang.org/x/sync/semaphore
 # golang.org/x/sys v0.0.0-20201201145000-ef89a241ccb3
 golang.org/x/sys/internal/unsafeheader
