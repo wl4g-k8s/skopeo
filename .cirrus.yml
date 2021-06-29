@@ -6,7 +6,7 @@ env:
     #### Global variables used for all tasks
     ####
     # Name of the ultimate destination branch for this CI run, PR or post-merge.
-    DEST_BRANCH: "master"
+    DEST_BRANCH: "main"
     # Overrides default location (/tmp/cirrus) for repo clone
     GOPATH: &gopath "/var/tmp/go"
     GOBIN: "${GOPATH}/bin"
@@ -46,7 +46,7 @@ env:
 
 
 # Default timeout for each task
-timeout_in: 30m
+timeout_in: 45m
 
 
 gcp_credentials: ENCRYPTED[52d9e807b531b37ab14e958cb5a72499460663f04c8d73e22ad608c027a31118420f1c80f0be0882fbdf96f49d8f9ac0]
