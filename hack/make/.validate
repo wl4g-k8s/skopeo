@@ -5,7 +5,7 @@ if [ -z "$VALIDATE_UPSTREAM" ]; then
 	# are running more than one validate bundlescript
 	
 	VALIDATE_REPO='https://github.com/containers/skopeo.git'
-	VALIDATE_BRANCH='master'
+	VALIDATE_BRANCH='main'
 	
 	if [ "$TRAVIS" = 'true' -a "$TRAVIS_PULL_REQUEST" != 'false' ]; then
 		VALIDATE_REPO="https://github.com/${TRAVIS_REPO_SLUG}.git"

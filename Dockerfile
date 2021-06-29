@@ -21,6 +21,7 @@ RUN dnf -y update && dnf install -y make git golang golang-github-cpuguy83-md2ma
 # both. This allows integration-cli tests to cover push/pull with both schema1
 # and schema2 manifests.
 RUN set -x \
+	&& export GO111MODULE=off \
 	&& REGISTRY_COMMIT_SCHEMA1=ec87e9b6971d831f0eff752ddb54fb64693e51cd \
 	&& REGISTRY_COMMIT=47a064d4195a9b56133891bbb13620c3ac83a827 \
 	&& export GOPATH="$(mktemp -d)" \
@@ -34,6 +35,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 RUN set -x \
+	&& export GO111MODULE=off \
 	&& export GOPATH=$(mktemp -d) \
 	&& git clone --depth 1 -b v1.5.0-alpha.3 git://github.com/openshift/origin "$GOPATH/src/github.com/openshift/origin" \
 	# The sed edits out a "go < 1.5" check which works incorrectly with go ≥ 1.10. \
