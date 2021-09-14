@@ -140,7 +140,9 @@ build-container:
 	${CONTAINER_RUNTIME} build ${BUILD_ARGS} -t "$(IMAGE)" .
 
 $(MANPAGES): %: %.md
+ifneq ($(DISABLE_DOCS), 1)
 	sed -e 's/\((skopeo.*\.md)\)//' -e 's/\[\(skopeo.*\)\]/\1/' $<  | $(GOMD2MAN) -in /dev/stdin -out $@
+endif
 
 docs: $(MANPAGES)
 
@@ -164,8 +166,10 @@ install-binary: bin/skopeo
 	install -m 755 bin/skopeo ${DESTDIR}${BINDIR}/skopeo
 
 install-docs: docs
+ifneq ($(DISABLE_DOCS), 1)
 	install -d -m 755 ${DESTDIR}${MANDIR}/man1
 	install -m 644 docs/*.1 ${DESTDIR}${MANDIR}/man1
+endif
 
 install-completions:
 	install -m 755 -d ${DESTDIR}${BASHCOMPLETIONSDIR}
