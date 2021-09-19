@@ -84,7 +84,7 @@ doccheck_task:
       "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" doccheck
 
 osx_task:
-    only_if: &not_docs $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
+    only_if: $CI != $CI
     depends_on:
         - validate
     macos_instance:
@@ -105,7 +105,7 @@ osx_task:
 
 cross_task:
     alias: cross
-    only_if: *not_docs
+    only_if: &not_docs $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
     depends_on:
         - validate
     gce_instance:
