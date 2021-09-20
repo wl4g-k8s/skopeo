@@ -84,18 +84,19 @@ doccheck_task:
       "${SKOPEO_PATH}/${SCRIPT_BASE}/runner.sh" doccheck
 
 osx_task:
-    only_if: $CI != $CI
+    only_if: &not_docs $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
     depends_on:
         - validate
     macos_instance:
         image: catalina-xcode
     setup_script: |
-        export PATH=$GOPATH/bin:$PATH
+        # /usr/local/opt/go@1.16 will be populated by (brew install go@1.16) below
+        export PATH=$GOPATH/bin:/usr/local/opt/go@1.16/bin:$PATH
         brew update
-        brew install gpgme go go-md2man
+        brew install gpgme go@1.16 go-md2man
         go get -u golang.org/x/lint/golint
     test_script: |
-        export PATH=$GOPATH/bin:$PATH
+        export PATH=$GOPATH/bin:/usr/local/opt/go@1.16/bin:$PATH
         go version
         go env
         make validate-local test-unit-local bin/skopeo
@@ -105,7 +106,7 @@ osx_task:
 
 cross_task:
     alias: cross
-    only_if: &not_docs $CIRRUS_CHANGE_TITLE !=~ '.*CI:DOCS.*'
+    only_if: *not_docs
     depends_on:
         - validate
     gce_instance:
