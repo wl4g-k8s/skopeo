@@ -64,23 +64,6 @@ validate_task:
     script: make validate-local
 
 
-cross_task:
-    only_if: 1 == 0
-    macos_instance:
-        image: catalina-xcode
-    setup_script: |
-        export PATH=$GOPATH/bin:$PATH
-        brew install gpgme go go-md2man
-        go get -u golang.org/x/lint/golint
-    test_script: |
-        export PATH=$GOPATH/bin:$PATH
-        go version
-        go env
-        make validate-local test-unit-local bin/skopeo
-        sudo make install
-        /usr/local/bin/skopeo -v
-
-
 #####
 ##### NOTE: This task is subtantially duplicated in the containers/image
 ##### repository's `.cirrus.yml`.  Changes made here should be fully merged
@@ -157,7 +140,6 @@ success_task:
     # N/B: ALL tasks must be listed here, minus their '_task' suffix.
     depends_on:
         - validate
-        - cross
         - test_skopeo
         - meta
     container: *smallcontainer
