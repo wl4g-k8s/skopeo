@@ -27,11 +27,20 @@ load helpers
     # Now run inspect locally
     run_skopeo inspect dir:$workdir
     inspect_local=$output
+    run_skopeo inspect --raw dir:$workdir
+    inspect_local_raw=$output
+    config_digest=$(jq -r '.config.digest' <<<"$inspect_local_raw")
 
-    # Each SHA-named file must be listed in the output of 'inspect'
+    # Each SHA-named layer file (but not the config) must be listed in the output of 'inspect'.
+    # In all existing versions of Skopeo (with 1.6 being the current as of this comment),
+    # the output of 'inspect' lists layer digests,
+    # but not the digest of the config blob ($config_digest), if any.
+    layers=$(jq -r '.Layers' <<<"$inspect_local")
     for sha in $(find $workdir -type f | xargs -l1 basename | egrep '^[0-9a-f]{64}$'); do
-        expect_output --from="$inspect_local" --substring "sha256:$sha" \
-                      "Locally-extracted SHA file is present in 'inspect'"
+        if [ "sha256:$sha" != "$config_digest" ]; then
+            expect_output --from="$layers" --substring "sha256:$sha" \
+                        "Locally-extracted SHA file is present in 'inspect'"
+        fi
     done
 
     # Simple sanity check on 'inspect' output.
