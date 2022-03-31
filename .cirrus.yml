@@ -90,7 +90,7 @@ osx_task:
         export PATH=$GOPATH/bin:$PATH
         brew update
         brew install gpgme go go-md2man
-        go get -u golang.org/x/lint/golint
+        go install golang.org/x/lint/golint@latest
     test_script: |
         export PATH=$GOPATH/bin:$PATH
         go version
