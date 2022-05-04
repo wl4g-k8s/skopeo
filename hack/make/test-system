@@ -1,14 +1,21 @@
 #!/bin/bash
 set -e
 
-# Before running podman for the first time, make sure
-# to set storage to vfs (not overlay): podman-in-podman
-# doesn't work with overlay. And, disable mountopt,
-# which causes error with vfs.
-sed -i \
-    -e 's/^driver\s*=.*/driver = "vfs"/' \
-    -e 's/^mountopt/#mountopt/' \
-    /etc/containers/storage.conf
+# These tests can run in/outside of a container.  However,
+# not all storage drivers are supported in a container
+# environment.  Detect this and setup storage when
+# running in a container.
+if ((SKOPEO_CONTAINER_TESTS)) && [[ -r /etc/containers/storage.conf ]]; then
+    sed -i \
+        -e 's/^driver\s*=.*/driver = "vfs"/' \
+        -e 's/^mountopt/#mountopt/' \
+        /etc/containers/storage.conf
+elif ((SKOPEO_CONTAINER_TESTS)); then
+    cat >> /etc/containers/storage.conf << EOF
+[storage]
+driver = "vfs"
+EOF
+fi
 
 # Build skopeo, install into /usr/bin
 make PREFIX=/usr install
