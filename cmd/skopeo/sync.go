@@ -114,7 +114,7 @@ See skopeo-sync(1) for details.
 	flags.StringVarP(&opts.source, "src", "s", "", "SOURCE transport type")
 	flags.StringVarP(&opts.destination, "dest", "d", "", "DESTINATION transport type")
 	flags.BoolVar(&opts.scoped, "scoped", false, "Images at DESTINATION are prefix using the full source image path as scope")
-	flags.IntVar(&opts.scopedLevel, "scoped-level", 2, "CUSTOM FEATURE: Images at DESTINATION are prefix, After using path separation, the level spliced forward from the end, such as scopeLevel=2, will splicing docker.io/calico/node:v3.21.0 to calico/node:v3.21.0")
+	flags.IntVar(&opts.scopedLevel, "scoped-level", 2, "CUSTOM FEATURE: Images at DESTINATION are prefix, After using path separation, the level spliced forward from the end, such as --scope-level=2, will splicing docker.io/calico/node:v3.21.0 to calico/node:v3.21.0")
 	flags.BoolVarP(&opts.all, "all", "a", false, "Copy all images if SOURCE-IMAGE is a list")
 	flags.BoolVar(&opts.dryRun, "dry-run", false, "Run without actually copying data")
 	flags.BoolVar(&opts.preserveDigests, "preserve-digests", false, "Preserve digests of images and lists")
@@ -629,8 +629,11 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 			// CUSTOM FEATURE: Extract repo path parts by scoped level.
 			//
 			if !opts.scoped {
-				// destSuffix = path.Base(destSuffix)
-				destSuffix = ExtractScopedLevelPath(destSuffix, opts.scopedLevel)
+				destSuffix = path.Base(destSuffix)
+			} else {
+				var before = destSuffix
+				destSuffix = ExtractScopedLevelPath(before, opts.scopedLevel)
+				logrus.Debugf("Extract scoped-level path: %s -> %s", before, destSuffix)
 			}
 
 			destRef, err := destinationReference(path.Join(destination, destSuffix), opts.destination)
