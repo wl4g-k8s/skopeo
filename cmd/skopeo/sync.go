@@ -41,10 +41,14 @@ type syncOptions struct {
 	source              string                    // Source repository name
 	destination         string                    // Destination registry name
 	scoped              bool                      // When true, namespace copied images at destination using the source repository name
-	all                 bool                      // Copy all of the images if an image in the source is a list
-	dryRun              bool                      // Don't actually copy anything, just output what it would have done
-	preserveDigests     bool                      // Preserve digests during sync
-	keepGoing           bool                      // Whether or not to abort the sync if there are any errors during syncing the images
+	//
+	// CUSTOM FEATURE: Extract repo path parts by scoped level
+	//
+	scopedLevel     int
+	all             bool // Copy all of the images if an image in the source is a list
+	dryRun          bool // Don't actually copy anything, just output what it would have done
+	preserveDigests bool // Preserve digests during sync
+	keepGoing       bool // Whether or not to abort the sync if there are any errors during syncing the images
 }
 
 // repoDescriptor contains information of a single repository used as a sync source.
@@ -110,6 +114,7 @@ See skopeo-sync(1) for details.
 	flags.StringVarP(&opts.source, "src", "s", "", "SOURCE transport type")
 	flags.StringVarP(&opts.destination, "dest", "d", "", "DESTINATION transport type")
 	flags.BoolVar(&opts.scoped, "scoped", false, "Images at DESTINATION are prefix using the full source image path as scope")
+	flags.IntVar(&opts.scopedLevel, "scoped-level", 2, "CUSTOM FEATURE: Images at DESTINATION are prefix, After using path separation, the level spliced forward from the end, such as scopeLevel=2, will splicing docker.io/calico/node:v3.21.0 to calico/node:v3.21.0")
 	flags.BoolVarP(&opts.all, "all", "a", false, "Copy all images if SOURCE-IMAGE is a list")
 	flags.BoolVar(&opts.dryRun, "dry-run", false, "Run without actually copying data")
 	flags.BoolVar(&opts.preserveDigests, "preserve-digests", false, "Preserve digests of images and lists")
@@ -620,8 +625,12 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 				}
 			}
 
+			//
+			// CUSTOM FEATURE: Extract repo path parts by scoped level.
+			//
 			if !opts.scoped {
-				destSuffix = path.Base(destSuffix)
+				// destSuffix = path.Base(destSuffix)
+				destSuffix = ExtractScopedLevelPath(destSuffix, opts.scopedLevel)
 			}
 
 			destRef, err := destinationReference(path.Join(destination, destSuffix), opts.destination)
@@ -664,4 +673,33 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 		return nil
 	}
 	return errors.New("Sync failed due to previous reported error(s) for one or more images")
+}
+
+//
+// CUSTOM FEATURE: Extract repo path parts by scoped level.
+// After using path separation, the level spliced forward from the end,
+// such as scopeLevel=2, will splicing docker.io/calico/node:v3.21.0 to calico/node:v3.21.0
+//
+func ExtractScopedLevelPath(path string, scopedLevel int) string {
+	if path == "" { // logistics sync for path.Base()
+		return "."
+	}
+	if path == "/" { // logistics sync for path.Base()
+		return "/"
+	}
+	// if has suffix '/'
+	path = strings.TrimSuffix(path, "/")
+	var parts = strings.Split(path, "/")
+	var size = len(parts)
+	if scopedLevel > size { // maxmium
+		scopedLevel = size
+	}
+	var newPath = ""
+	for i := size - scopedLevel; i < size; i++ {
+		if parts[i] != "" {
+			newPath += "/" + parts[i]
+		}
+	}
+	// if has prefix '/'
+	return strings.TrimPrefix(newPath, "/")
 }
