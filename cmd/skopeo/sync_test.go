@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"path"
+	"strings"
 	"testing"
 )
 
@@ -21,4 +22,14 @@ func TestExtractScopedLevelPath(t *testing.T) {
 	// Case3:
 	repoUri = "gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/controller"
 	fmt.Println("extractScopedLevePath :: " + ExtractScopedLevelPath(repoUri, scopedLevel))
+}
+
+func TestSubstring(t *testing.T) {
+	dockerRepoDefault := "docker.io/library/"
+	destSuffix := "docker.io/library/redis:3.0-alpine"
+	idx := strings.Index(destSuffix, dockerRepoDefault)
+	fmt.Println(idx)
+	fmt.Println(destSuffix[idx+len(dockerRepoDefault):])
+
+	fmt.Println(path.Base(destSuffix))
 }

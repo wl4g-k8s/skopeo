@@ -627,9 +627,8 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 
 	for _, srcRepo := range srcRepoList {
 		options.SourceCtx = srcRepo.Context
-		syncConfig := globalCfg[srcRepo.RegistryName] // [CUSTOM FEATURES]
 		for counter, ref := range srcRepo.ImageRefs {
-			var destSuffix string
+			var destSuffix = ""
 			switch ref.Transport() {
 			case docker.Transport:
 				// docker -> dir or docker -> docker
@@ -649,17 +648,17 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 			// [CUSTOM FEATURES] Extract repo sub path by scoped level and using configuration mapping.
 			//
 			var before = destSuffix
-			destRepo := syncConfig.ImagesRepoMapping[destSuffix] // priority first
-			if destRepo != "" {
-				destSuffix = destRepo
-				logrus.Infof("[CUSTOM FEATURES] Processed src repo path with mapping. %s -> %s", before, destSuffix)
+			var mappedDestSuffix = getImageMappedDestSuffix(srcRepo, destSuffix)
+			if mappedDestSuffix != "" {
+				destSuffix = mappedDestSuffix
+				logrus.Infof("[CUSTOM FEATURES] Determined destSuffix with mapping. %s -> %s", before, destSuffix)
 			} else { // fallback
 				if !opts.scoped {
 					destSuffix = path.Base(destSuffix)
-					logrus.Infof("[CUSTOM FEATURES] Processed src repo path with base. %s -> %s", before, destSuffix)
-				} else {
+					logrus.Infof("[CUSTOM FEATURES] Determined destSuffix with base. %s -> %s", before, destSuffix)
+				} else { // use source repo path namespace
 					destSuffix = ExtractScopedLevelPath(before, opts.scopedLevel)
-					logrus.Infof("[CUSTOM FEATURES] Processed src repo path with extract scoped level. %s -> %s", before, destSuffix)
+					logrus.Infof("[CUSTOM FEATURES] Determined destSuffix with scoped level. %s -> %s", before, destSuffix)
 				}
 			}
 
@@ -706,7 +705,7 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 }
 
 //
-// CUSTOM FEATURE: Extract repo path parts by scoped level.
+// [CUSTOM FEATURES] Extract repo path parts by scoped level.
 // After using path separation, the level spliced forward from the end,
 // such as --scoped-level=2, will splicing docker.io/calico/node:v3.21.0 to calico/node:v3.21.0
 //
@@ -732,4 +731,27 @@ func ExtractScopedLevelPath(path string, scopedLevel int) string {
 	}
 	// if has prefix '/'
 	return strings.TrimPrefix(newPath, "/")
+}
+
+//
+// [CUSTOM FEATURES]
+//
+func getImageMappedDestSuffix(srcRepo repoDescriptor, destSuffix string) string {
+	syncConfig := globalCfg[srcRepo.RegistryName] // [CUSTOM FEATURES]
+	var (
+		mappedDestSuffix  = ""
+		dockerRepoDefault = "docker.io/library/"
+	)
+
+	// e.g: destSuffix=docker.io/library/redis:3.0-alpine
+	idx := strings.Index(destSuffix, dockerRepoDefault)
+	if idx >= 0 {
+		repoName := destSuffix[idx+len(dockerRepoDefault):]
+		parts := strings.Split(repoName, ":") // e.g redis:3.0-alpine
+		mappedPath := syncConfig.ImagesRepoMapping[parts[0]]
+		if mappedPath != "" {
+			mappedDestSuffix = mappedPath + ":" + parts[1] // priority first
+		}
+	}
+	return mappedDestSuffix
 }
