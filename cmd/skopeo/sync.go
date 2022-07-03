@@ -53,9 +53,10 @@ type syncOptions struct {
 
 // repoDescriptor contains information of a single repository used as a sync source.
 type repoDescriptor struct {
-	DirBasePath string                 // base path when source is 'dir'
-	ImageRefs   []types.ImageReference // List of tagged image found for the repository
-	Context     *types.SystemContext   // SystemContext for the sync command
+	DirBasePath  string                 // base path when source is 'dir'
+	RegistryName string                 // [CUSTOM FEATURES]
+	ImageRefs    []types.ImageReference // List of tagged image found for the repository
+	Context      *types.SystemContext   // SystemContext for the sync command
 }
 
 // tlsVerifyConfig is an implementation of the Unmarshaler interface, used to
@@ -67,15 +68,20 @@ type tlsVerifyConfig struct {
 // registrySyncConfig contains information about a single registry, read from
 // the source YAML file
 type registrySyncConfig struct {
-	Images           map[string][]string    // Images map images name to slices with the images' references (tags, digests)
-	ImagesByTagRegex map[string]string      `yaml:"images-by-tag-regex"` // Images map images name to regular expression with the images' tags
-	Credentials      types.DockerAuthConfig // Username and password used to authenticate with the registry
-	TLSVerify        tlsVerifyConfig        `yaml:"tls-verify"` // TLS verification mode (enabled by default)
-	CertDir          string                 `yaml:"cert-dir"`   // Path to the TLS certificates of the registry
+	Images            map[string][]string    // Images map images name to slices with the images' references (tags, digests)
+	ImagesByTagRegex  map[string]string      `yaml:"images-by-tag-regex"` // Images map images name to regular expression with the images' tags
+	Credentials       types.DockerAuthConfig // Username and password used to authenticate with the registry
+	TLSVerify         tlsVerifyConfig        `yaml:"tls-verify"`          // TLS verification mode (enabled by default)
+	CertDir           string                 `yaml:"cert-dir"`            // Path to the TLS certificates of the registry
+	ImagesRepoMapping map[string]string      `yaml:"images-repo-mapping"` // [CUSTOM FEATURES]
 }
 
 // sourceConfig contains all registries information read from the source YAML file
 type sourceConfig map[string]registrySyncConfig
+
+var (
+	globalCfg sourceConfig
+)
 
 func syncCmd(global *globalOptions) *cobra.Command {
 	sharedFlags, sharedOpts := sharedImageFlags()
@@ -304,6 +310,11 @@ func imagesToCopyFromRegistry(registryName string, cfg registrySyncConfig, sourc
 		serverCtx.DockerAuthConfig = &cfg.Credentials
 	}
 	var repoDescList []repoDescriptor
+
+	//
+	// Pulling by cfg.Images
+	//
+
 	for imageName, refs := range cfg.Images {
 		repoLogger := logrus.WithFields(logrus.Fields{
 			"repo":     imageName,
@@ -368,6 +379,10 @@ func imagesToCopyFromRegistry(registryName string, cfg registrySyncConfig, sourc
 			Context:   serverCtx})
 	}
 
+	//
+	// Pulling by cfg.ImagesByTagRegex
+	//
+
 	for imageName, tagRegex := range cfg.ImagesByTagRegex {
 		repoLogger := logrus.WithFields(logrus.Fields{
 			"repo":     imageName,
@@ -418,8 +433,9 @@ func imagesToCopyFromRegistry(registryName string, cfg registrySyncConfig, sourc
 			continue
 		}
 		repoDescList = append(repoDescList, repoDescriptor{
-			ImageRefs: sourceReferences,
-			Context:   serverCtx})
+			ImageRefs:    sourceReferences,
+			RegistryName: registryName, // [CUSTOM FEATURES]
+			Context:      serverCtx})
 	}
 
 	return repoDescList, nil
@@ -485,6 +501,7 @@ func imagesToCopy(source string, transport string, sourceCtx *types.SystemContex
 
 	case "yaml":
 		cfg, err := newSourceConfig(source)
+		globalCfg = cfg // [CUSTOM FEATURES]
 		if err != nil {
 			return descriptors, err
 		}
@@ -610,12 +627,14 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 
 	for _, srcRepo := range srcRepoList {
 		options.SourceCtx = srcRepo.Context
+		syncConfig := globalCfg[srcRepo.RegistryName] // [CUSTOM FEATURES]
 		for counter, ref := range srcRepo.ImageRefs {
 			var destSuffix string
 			switch ref.Transport() {
 			case docker.Transport:
 				// docker -> dir or docker -> docker
 				destSuffix = ref.DockerReference().String()
+				logrus.Infof("Processed src repo path with docker.transport. destSuffix=%s", destSuffix)
 			case directory.Transport:
 				// dir -> docker (we don't allow `dir` -> `dir` sync operations)
 				destSuffix = strings.TrimPrefix(ref.StringWithinTransport(), srcRepo.DirBasePath)
@@ -623,17 +642,25 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 					// if source is a full path to an image, have destPath scoped to repo:tag
 					destSuffix = path.Base(srcRepo.DirBasePath)
 				}
+				logrus.Infof("Processed src repo path with directory.transport. destSuffix=%s", destSuffix)
 			}
 
 			//
-			// CUSTOM FEATURE: Extract repo path parts by scoped level.
+			// [CUSTOM FEATURES] Extract repo sub path by scoped level and using configuration mapping.
 			//
-			if !opts.scoped {
-				destSuffix = path.Base(destSuffix)
-			} else {
-				var before = destSuffix
-				destSuffix = ExtractScopedLevelPath(before, opts.scopedLevel)
-				logrus.Debugf("Extract scoped-level path: %s -> %s", before, destSuffix)
+			var before = destSuffix
+			destRepo := syncConfig.ImagesRepoMapping[destSuffix] // priority first
+			if destRepo != "" {
+				destSuffix = destRepo
+				logrus.Infof("[CUSTOM FEATURES] Processed src repo path with mapping. %s -> %s", before, destSuffix)
+			} else { // fallback
+				if !opts.scoped {
+					destSuffix = path.Base(destSuffix)
+					logrus.Infof("[CUSTOM FEATURES] Processed src repo path with base. %s -> %s", before, destSuffix)
+				} else {
+					destSuffix = ExtractScopedLevelPath(before, opts.scopedLevel)
+					logrus.Infof("[CUSTOM FEATURES] Processed src repo path with extract scoped level. %s -> %s", before, destSuffix)
+				}
 			}
 
 			destRef, err := destinationReference(path.Join(destination, destSuffix), opts.destination)
@@ -681,7 +708,7 @@ func (opts *syncOptions) run(args []string, stdout io.Writer) (retErr error) {
 //
 // CUSTOM FEATURE: Extract repo path parts by scoped level.
 // After using path separation, the level spliced forward from the end,
-// such as scopeLevel=2, will splicing docker.io/calico/node:v3.21.0 to calico/node:v3.21.0
+// such as --scoped-level=2, will splicing docker.io/calico/node:v3.21.0 to calico/node:v3.21.0
 //
 func ExtractScopedLevelPath(path string, scopedLevel int) string {
 	if path == "" { // logistics sync for path.Base()
